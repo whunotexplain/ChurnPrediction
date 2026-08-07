@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 antialiased;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-glass backdrop-blur-xl border border-glassBorder rounded-2xl shadow-2xl;
+  }
+  
+  .input-field {
+    @apply w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-sm 
+           focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500/50
+           transition-all duration-200 placeholder:text-slate-500;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-r from-accent-600 to-accent-500 hover:from-accent-500 hover:to-accent-400
+           text-white font-semibold px-6 py-3 rounded-xl shadow-lg shadow-accent-500/25
+           transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .risk-high {
+    @apply text-rose-400 bg-rose-400/10 border-rose-400/20;
+  }
+  .risk-medium {
+    @apply text-amber-400 bg-amber-400/10 border-amber-400/20;
+  }
+  .risk-low {
+    @apply text-emerald-400 bg-emerald-400/10 border-emerald-400/20;
+  }
+}
