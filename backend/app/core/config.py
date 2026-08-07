@@ -1,5 +1,9 @@
 from pydantic_settings import BaseSettings
+import psycopg2
+from dotenv import load_dotenv
 from pathlib import Path
+
+load_dotenv()
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Churn Prediction API"
