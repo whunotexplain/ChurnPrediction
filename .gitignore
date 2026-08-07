@@ -1,10 +1,173 @@
-# Python-generated files
+# ==========================
+# Python
+# ==========================
 __pycache__/
-*.py[oc]
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution
 build/
 dist/
-wheels/
-*.egg-info
+*.egg-info/
+.eggs/
 
-# Virtual environments
-.venv
+# ==========================
+# Virtual Environments
+# ==========================
+.venv/
+venv/
+env/
+ENV/
+
+# ==========================
+# IDE
+# ==========================
+.vscode/
+.idea/
+*.iml
+
+# ==========================
+# OS
+# ==========================
+.DS_Store
+Thumbs.db
+
+# ==========================
+# Jupyter
+# ==========================
+.ipynb_checkpoints/
+
+# ==========================
+# Pytest
+# ==========================
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+
+# ==========================
+# MyPy
+# ==========================
+.mypy_cache/
+
+# ==========================
+# Ruff / Flake8
+# ==========================
+.ruff_cache/
+
+# ==========================
+# Logs
+# ==========================
+logs/
+*.log
+
+# ==========================
+# Environment Variables
+# ==========================
+.env
+.env.*
+!.env.example
+
+# ==========================
+# Database
+# ==========================
+*.sqlite3
+*.db
+
+# PostgreSQL dumps
+*.sql
+*.dump
+*.backup
+
+# ==========================
+# ML Models
+# ==========================
+models/
+checkpoints/
+weights/
+artifacts/
+outputs/
+runs/
+
+*.ckpt
+*.pth
+*.pt
+*.bin
+*.onnx
+*.joblib
+*.pkl
+*.pickle
+*.h5
+
+# HuggingFace cache
+.huggingface/
+.cache/huggingface/
+
+# ==========================
+# Data
+# ==========================
+data/raw/
+data/interim/
+data/processed/
+datasets/
+
+*.csv
+*.parquet
+*.feather
+
+# Исключения
+!data/.gitkeep
+!data/sample/
+!data/sample/**
+
+# ==========================
+# MLflow
+# ==========================
+mlruns/
+
+# ==========================
+# TensorBoard
+# ==========================
+tensorboard_logs/
+
+# ==========================
+# Docker
+# ==========================
+docker-data/
+docker-volumes/
+
+# ==========================
+# Alembic
+# ==========================
+alembic/versions/__pycache__/
+
+# ==========================
+# Frontend
+# ==========================
+node_modules/
+npm-debug.log*
+yarn-error.log*
+dist/
+
+# ==========================
+# Temporary
+# ==========================
+tmp/
+temp/
+*.tmp
+
+# ==========================
+# VS Code history
+# ==========================
+.history/
+
+# ==========================
+# Secrets
+# ==========================
+*.pem
+*.key
+*.crt
+*.p12
