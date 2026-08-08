@@ -1,18 +1,38 @@
-from pydantic_settings import BaseSettings
-import psycopg2
-from dotenv import load_dotenv
+"""
+Настройки приложения. Всё конфигурируемое читается из переменных окружения
+(или .env файла), а не хардкодится.
+
+БЫЛО: DATABASE_URL по умолчанию указывал на sqlite:///./churn_api.db —
+удобно для локального запуска без Docker, но означает, что данные живут
+в файле внутри контейнера и пропадают при пересоздании контейнера.
+
+СТАЛО: по умолчанию Postgres, адрес берётся из переменной окружения
+DATABASE_URL. docker-compose.yml прокидывает туда адрес контейнера с
+Postgres. Для локального запуска без Docker можно переопределить
+DATABASE_URL на sqlite в .env.
+"""
+
 from pathlib import Path
 
-load_dotenv()
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
     PROJECT_NAME: str = "Churn Prediction API"
     VERSION: str = "1.0.0"
-    DATABASE_URL: str = "sqlite:///./churn_api.db"
-    MODEL_PATH: Path = Path("../ml_core/artifacts/catboost_model.pkl")
-    FE_PARAMS_PATH: Path = Path("../ml_core/artifacts/fe_params.json")
-    
-    class Config:
-        env_file = ".env"
+
+    # Postgres по умолчанию — адрес сервиса "db" из docker-compose.yml
+    DATABASE_URL: str = "postgresql+psycopg2://churn_user:churn_password@db:5432/churn_db"
+
+    # Модель обучается скриптом app/src/train.py и сохраняется сюда;
+    # backend читает её при старте (см. main.py -> startup event)
+    MODEL_PATH: Path = Path("ml_core/artifacts/churn_model.joblib")
+    MODEL_VERSION: str = "v1.0.0"
+
+    # Порог классификации Churn/No Churn
+    MODEL_THRESHOLD: float = 0.5
+
 
 settings = Settings()

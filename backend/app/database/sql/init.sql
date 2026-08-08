@@ -1,19 +1,15 @@
--- Инициализация схемы БД для Churn Prediction API
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Справочная схема БД (для ручного просмотра/psql).
+-- Источник правды по схеме — ORM-модель в app/database/models.py и
+-- миграция alembic/versions/0001_initial.py; в реальном запуске таблицу
+-- создаёт alembic, этот файл не выполняется автоматически.
 
 CREATE TABLE IF NOT EXISTS predictions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    customer_id VARCHAR(50),
+    id UUID PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    input_payload JSONB NOT NULL,
     churn_probability FLOAT NOT NULL CHECK (churn_probability BETWEEN 0 AND 1),
     churn_prediction BOOLEAN NOT NULL,
-    risk_segment VARCHAR(20) NOT NULL CHECK (risk_segment IN ('low', 'medium', 'high')),
-    top_features JSONB,
-    model_version VARCHAR(20) NOT NULL,
-    raw_input JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    model_version VARCHAR(20) NOT NULL
 );
 
--- Индексы для быстрой выборки
 CREATE INDEX IF NOT EXISTS idx_predictions_created_at ON predictions(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_predictions_risk_segment ON predictions(risk_segment);
-CREATE INDEX IF NOT EXISTS idx_predictions_customer_id ON predictions(customer_id);

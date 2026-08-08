@@ -1,12 +1,17 @@
 import sys
 from pathlib import Path
 from logging.config import fileConfig
+
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
+# БЫЛО: parents[1] от alembic/versions/env.py указывал на backend/ — сам
+# путь был правильным чисто арифметически, но файл лежал в versions/,
+# из-за чего alembic не находил env.py по script_location=alembic вовсе.
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.database.base import Base
+from app.database.models import PredictionRecord  # noqa: F401 — регистрирует модель в Base.metadata
 from app.core.config import settings
 
 config = context.config
@@ -15,10 +20,10 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+
 def run_migrations_offline() -> None:
-    url = settings.DATABASE_URL
     context.configure(
-        url=url,
+        url=settings.DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -26,18 +31,16 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 def run_migrations_online() -> None:
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = settings.DATABASE_URL
-    connectable = engine_from_config(
-        configuration,
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    connectable = engine_from_config(configuration, prefix="sqlalchemy.", poolclass=pool.NullPool)
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

@@ -20,8 +20,8 @@ from sklearn.metrics import (
 )
 import lightgbm as lgb
 
-from src.preprocess import FeatureEngineer, build_preprocessor, get_feature_columns
-from src.utils import setup_logging, ensure_dir
+from app.src.preprocess import FeatureEngineer, build_preprocessor, get_feature_columns
+from app.src.utils import setup_logging, ensure_dir
 
 warnings.filterwarnings("ignore")
 logger = setup_logging()
@@ -74,8 +74,6 @@ def train_model(data_path: str, output_dir: str, n_trials: int = 100) -> None:
     """Полный пайплайн обучения."""
     output_dir = Path(output_dir)
     ensure_dir(output_dir)
-    models_dir = output_dir / "models"
-    ensure_dir(models_dir)
 
     # 1. Загрузка
     logger.info("Загрузка данных...")
@@ -141,7 +139,7 @@ def train_model(data_path: str, output_dir: str, n_trials: int = 100) -> None:
     logger.info("\n" + classification_report(y_test, test_pred, target_names=["No Churn", "Churn"]))
 
     # 7. Сохранение
-    model_path = models_dir / "churn_model.joblib"
+    model_path = output_dir / "churn_model.joblib"
     joblib.dump(final_pipe, model_path)
     logger.info(f"Модель сохранена: {model_path}")
 
@@ -179,10 +177,10 @@ def train_model(data_path: str, output_dir: str, n_trials: int = 100) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Обучение модели Churn Prediction")
-    parser.add_argument("--data", type=str, default="data/WA_Fn-UseC_-Telco-Customer-Churn.csv",
+    parser.add_argument("--data", type=str, default="ml_core/data/WA_Fn-UseC_-Telco-Customer-Churn.csv",
                         help="Путь к CSV-файлу")
-    parser.add_argument("--output", type=str, default=".", help="Директория для артефактов")
-    parser.add_argument("--trials", type=int, default=50, help="Количество trials Optuna")
+    parser.add_argument("--output", type=str, default="ml_core/artifacts", help="Директория для артефактов")
+    parser.add_argument("--trials", type=int, default=20, help="Количество trials Optuna (по умолчанию снижено для быстрого запуска в Docker; README поясняет как увеличить)")
     args = parser.parse_args()
 
     train_model(args.data, args.output, n_trials=args.trials)
