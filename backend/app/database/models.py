@@ -1,13 +1,11 @@
 """
 ORM-модель истории предсказаний.
 
-НОВОЕ: раньше в репозитории было три источника правды по схеме этой
-таблицы, и все три расходились между собой:
-  - app/database/sql/init.sql (customer_id, risk_segment, top_features JSONB...)
-  - alembic/001_initial.py (id INTEGER, prediction INTEGER, probability FLOAT...)
-  - ничего в коде реально эту таблицу не описывало и не использовало
-Теперь ORM-модель здесь — единственный источник правды, alembic-миграция
-и init.sql приведены в соответствие с ней.
+НОВОЕ (эта итерация): добавлены поля для A/B-тестирования —
+ab_variant (какая модель отвечала) и actual_churn/outcome_recorded_at
+(фактический исход, который приходит позже через POST /outcome).
+Без actual_churn A/B-тест мог сравнивать только то, что предсказали
+модели, а не то, кто из них оказался прав.
 """
 
 import datetime
@@ -27,10 +25,18 @@ class PredictionRecord(Base):
         DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), index=True
     )
 
-    # Сырые входные данные клиента — JSON, чтобы не заводить по колонке
-    # на каждый признак датасета (их 19+)
     input_payload: Mapped[dict] = mapped_column(JSON)
 
     churn_probability: Mapped[float] = mapped_column(Float)
     churn_prediction: Mapped[bool] = mapped_column(Boolean)
     model_version: Mapped[str] = mapped_column(String, default="v1.0.0")
+
+    # Какая модель отвечала — "A" (champion) или "B" (challenger)
+    ab_variant: Mapped[str] = mapped_column(String, default="A", index=True)
+
+    # Заполняется позже, когда становится известен факт: ушёл клиент или нет.
+    # NULL — значит исход ещё не наступил / не подтверждён.
+    actual_churn: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
+    outcome_recorded_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )

@@ -34,5 +34,13 @@ class Settings(BaseSettings):
     # Порог классификации Churn/No Churn
     MODEL_THRESHOLD: float = 0.5
 
+    # --- A/B тестирование ---
+    # Вариант A — модель выше (MODEL_PATH). Вариант B — челленджер;
+    # если файла нет, весь трафик молча идёт в A (см. app/ml/model.py).
+    AB_TEST_ENABLED: bool = True
+    MODEL_B_PATH: Path = Path("ml_core/artifacts/churn_model_b.joblib")
+    AB_TRAFFIC_SPLIT: float = 0.5  # доля трафика на вариант B
+    AB_ALPHA: float = 0.05          # уровень значимости для /ab-test-results
+
 
 settings = Settings()
