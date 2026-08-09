@@ -8,356 +8,521 @@
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL">
 </p>
 
-REST-сервис для прогнозирования оттока клиентов телеком-оператора.  
-Модель обучена на датасете [Telco Customer Churn](https://www.kaggle.com/datasets/blastchar/telco-customer-churn), развёрнута через **FastAPI** и контейнеризирована в **Docker**.
+# ChurnPrediction
+
+> End-to-end ML-система для прогнозирования оттока клиентов, сегментации пользователей и проведения A/B-тестов retention-стратегий.
+
+## 📌 О проекте
+
+**ChurnPrediction** — учебный end-to-end проект, моделирующий production-систему для работы с оттоком клиентов.
+
+Система позволяет:
+
+* анализировать клиентские данные;
+* обучать и оценивать ML-модели для прогнозирования churn;
+* определять клиентов с высоким риском ухода;
+* предоставлять ML-предсказания через REST API;
+* хранить и обрабатывать данные через PostgreSQL;
+* проводить A/B-эксперименты;
+* оценивать статистическую значимость результатов;
+* рассчитывать необходимый размер выборки и Minimum Detectable Effect (MDE).
+
+Главная идея проекта — пройти полный путь от **данных и ML-модели до backend-сервиса и экспериментирования**.
 
 ---
 
-## Бизнес-задача
+## 🏗️ Архитектура
 
-Снизить отток клиентов за счёт раннего выявления подписчиков с высокой вероятностью ухода.  
-**Целевая метрика:** ROC-AUC (устойчива к дисбалансу классов 73:27).
-
-**Почему это важно:** привлечение нового клиента в телекоме обходится в 5–25× дороже удержания существующего. Модель позволяет CRM-системе автоматически формировать списки клиентов на ретенционные предложения.
-
----
-
-
-**Поток данных:**
-1. Клиент отправляет JSON с анкетными данными абонента
-2. FastAPI валидирует вход через Pydantic
-3. Предобработочный pipeline (из `sklearn`) трансформирует признаки
-4. LightGBM возвращает вероятность оттока + бинарное предсказание
-5. Результат + SHAP-интерпретация записываются в PostgreSQL
-
----
-
-## Структура проекта
-
+```text
+                    ┌─────────────────────┐
+                    │    Client / User    │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │      FastAPI        │
+                    │      REST API       │
+                    └──────────┬──────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              │                │                │
+              ▼                ▼                ▼
+        ┌───────────┐   ┌──────────────┐  ┌──────────────┐
+        │ ML Model  │   │ A/B Testing  │  │ PostgreSQL   │
+        │ Prediction│   │ & Statistics │  │   Database   │
+        └─────┬─────┘   └──────┬───────┘  └──────────────┘
+              │                 │
+              └────────┬────────┘
+                       ▼
+              ┌──────────────────┐
+              │ Business Metrics │
+              │ Churn / Retention│
+              └──────────────────┘
 ```
-churn-prediction-api/
+
+---
+
+# 🤖 Machine Learning
+
+## Задача
+
+Бинарная классификация:
+
+> **Предсказать вероятность того, что клиент уйдёт из компании.**
+
+Target:
+
+```text
+Churn = 1 → клиент ушёл
+Churn = 0 → клиент остался
+```
+
+## ML Pipeline
+
+```text
+Raw Data
+   ↓
+Data Cleaning
+   ↓
+EDA
+   ↓
+Feature Engineering
+   ↓
+Train / Validation Split
+   ↓
+Model Training
+   ↓
+Hyperparameter Tuning
+   ↓
+Model Evaluation
+   ↓
+Prediction API
+```
+
+В проекте используются:
+
+* Python
+* Pandas / NumPy
+* Scikit-learn
+* CatBoost / LightGBM
+* Matplotlib / Seaborn
+* Jupyter Notebook
+
+### Оценка модели
+
+Используются:
+
+* ROC-AUC
+* Precision
+* Recall
+* F1-score
+* Confusion Matrix
+* classification threshold analysis
+
+Для задачи churn особое внимание уделяется **Recall и Precision**, поскольку стоимость ошибок для бизнеса различается.
+
+---
+
+# 📊 Explainable ML
+
+Для интерпретации модели используются методы анализа feature importance / SHAP.
+
+Это позволяет отвечать на вопросы:
+
+* какие признаки сильнее всего влияют на churn;
+* почему конкретный клиент получил высокий risk score;
+* какие характеристики связаны с повышенным риском оттока.
+
+Пример:
+
+```text
+Customer
+   ↓
+ML Model
+   ↓
+Churn Probability = 0.87
+   ↓
+High Risk
+   ↓
+Retention Strategy
+```
+
+---
+
+# 🧪 A/B Testing
+
+В проект добавлен модуль для проведения A/B-экспериментов.
+
+Основная задача эксперимента — проверить, приводит ли изменение стратегии обработки клиентов к статистически значимому изменению целевой метрики.
+
+## Распределение пользователей
+
+Для распределения клиентов используется **детерминированная рандомизация** на основе `customer_id`.
+
+```text
+customer_id
+     ↓
+ SHA-256 hash
+     ↓
+ bucket
+     ↓
+ ┌───────────────┐
+ │               │
+ ▼               ▼
+Control       Treatment
+```
+
+Это позволяет гарантировать, что один и тот же пользователь будет стабильно попадать в одну экспериментальную группу.
+
+Также предусмотрены:
+
+* configurable traffic split;
+* feature flag для включения/выключения эксперимента;
+* fallback для пользователей без `customer_id`.
+
+---
+
+# 📐 Statistical Testing
+
+Модуль `statistics.py` содержит инструменты для статистического анализа результатов эксперимента.
+
+Реализованы:
+
+* формулировка нулевой и альтернативной гипотез;
+* two-proportion z-test;
+* расчёт pooled proportion;
+* standard error;
+* p-value;
+* confidence interval;
+* statistical significance;
+* sample size calculation;
+* Minimum Detectable Effect (MDE);
+* statistical power.
+
+Пример постановки:
+
+```text
+H₀:
+p_control = p_treatment
+
+H₁:
+p_control ≠ p_treatment
+```
+
+При:
+
+```text
+α = 0.05
+```
+
+результат считается статистически значимым при:
+
+```text
+p-value < 0.05
+```
+
+---
+
+# 🧮 Experiment Design
+
+Перед запуском эксперимента можно определить необходимый размер выборки.
+
+Основные параметры:
+
+```text
+Baseline conversion
+        +
+Minimum Detectable Effect
+        +
+Significance level
+        +
+Statistical power
+        ↓
+Required Sample Size
+```
+
+Стандартные параметры:
+
+```text
+α = 0.05
+Power = 0.80
+```
+
+Это позволяет избежать ситуации, когда эксперимент запускается на слишком маленькой выборке и не способен обнаружить практически значимый эффект.
+
+---
+
+# 🔬 ML + Experimentation
+
+Ключевая идея проекта — не останавливаться на качестве ML-модели.
+
+```text
+                    ML
+                     │
+                     ▼
+             Churn Probability
+                     │
+                     ▼
+              High-risk users
+                     │
+                     ▼
+             Experimentation
+              ┌──────┴──────┐
+              ▼             ▼
+           Control       Treatment
+              │             │
+              └──────┬──────┘
+                     ▼
+              Business Metric
+                     │
+                     ▼
+             Statistical Test
+                     │
+                     ▼
+              Business Decision
+```
+
+Таким образом, ML-модель рассматривается не как конечный результат, а как часть продукта.
+
+---
+
+# ⚙️ Backend
+
+Backend реализован на **FastAPI**.
+
+Основные задачи:
+
+* REST API;
+* inference ML-модели;
+* работа с клиентскими данными;
+* A/B assignment;
+* сбор результатов эксперимента;
+* взаимодействие с PostgreSQL.
+
+Структура backend:
+
+```text
+backend/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py              # FastAPI приложение (endpoints)
-│   ├── schemas.py           # Pydantic-модели валидации
-│   ├── model.py             # Загрузка модели + predict-функция
-│   └── database.py          # Подключение к PostgreSQL + CRUD
-├── notebooks/
-│   ├── 01_eda.ipynb         # Разведочный анализ (распределения, корреляции)
-│   ├── 02_feature_eng.ipynb # Feature Engineering (encoding, взаимодействия)
-│   └── 03_modeling.ipynb    # Обучение, валидация, интерпретация
-├── src/
-│   ├── train.py             # Скрипт обучения модели
-│   ├── preprocess.py        # Пайплайн предобработки (sklearn Pipeline)
-│   └── utils.py             # Вспомогательные функции
-├── models/
-│   ├── churn_model.pkl      # Сериализованная модель + pipeline
-│   └── churn_model.joblib   # Альтернативный формат
-├── sql/
-│   └── init.sql             # Схема таблицы predictions + индексы
+│   ├── api/
+│   ├── core/
+│   │   ├── ab_testing.py
+│   │   └── statistics.py
+│   ├── models/
+│   ├── schemas/
+│   └── services/
 ├── tests/
-│   ├── test_api.py          # Интеграционные тесты endpoint'ов
-│   └── test_model.py        # Юнит-тесты предобработки
-├── Dockerfile
+└── Dockerfile
+```
+
+---
+
+# 🗄️ Database
+
+В качестве основной СУБД используется **PostgreSQL**.
+
+База данных используется для:
+
+* хранения клиентов;
+* хранения prediction results;
+* хранения результатов экспериментов;
+* работы backend-сервиса.
+
+---
+
+# 🖥️ Frontend
+
+Для проекта реализован frontend, позволяющий взаимодействовать с ML-сервисом.
+
+Основные возможности:
+
+* просмотр клиентских данных;
+* получение churn prediction;
+* отображение результатов;
+* взаимодействие с backend API.
+
+---
+
+# 🧪 Testing
+
+Для backend реализованы автоматизированные тесты.
+
+Проверяются:
+
+* API endpoints;
+* бизнес-логика;
+* A/B assignment;
+* статистические функции;
+* обработка некорректных входных данных.
+
+Используется:
+
+```text
+pytest
+```
+
+---
+
+# 🐳 Infrastructure
+
+Проект контейнеризирован с использованием Docker.
+
+Основные компоненты:
+
+```text
+Docker
+Docker Compose
+FastAPI
+PostgreSQL
+```
+
+Запуск проекта:
+
+```bash
+docker compose up --build
+```
+
+---
+
+# 📁 Project Structure
+
+```text
+ChurnPrediction/
+│
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   ├── core/
+│   │   │   ├── ab_testing.py
+│   │   │   └── statistics.py
+│   │   ├── models/
+│   │   ├── schemas/
+│   │   └── services/
+│   ├── tests/
+│   └── Dockerfile
+│
+├── frontend/
+│
+├── ml_core/
+│   └── notebooks/
+│
+├── docs/
+│
 ├── docker-compose.yml
-├── requirements.txt
 └── README.md
 ```
 
 ---
 
-## Быстрый старт
+# 🛠️ Tech Stack
 
-### Требования
+### Data Science
 
-- Docker 24.0+
-- Docker Compose 2.20+
-- 4 GB RAM (для контейнеров)
+* Python
+* Pandas
+* NumPy
+* Scikit-learn
+* CatBoost
+* LightGBM
+* SHAP
+* Matplotlib
+* Seaborn
+* Jupyter
 
-### 1. Клонирование
+### Statistics
 
-```bash
-git clone https://github.com/whunotexplain/churn-prediction-api.git
-cd churn-prediction-api
-```
+* Hypothesis Testing
+* Two-Proportion Z-Test
+* Confidence Intervals
+* Statistical Power
+* Sample Size Estimation
+* MDE
 
-### 2. Запуск через Docker Compose
+### Backend
 
-```bash
-docker-compose up --build -d
-```
+* FastAPI
+* Pydantic
+* REST API
+* Pytest
 
-**Поднимаются сервисы:**
+### Database
 
-| Сервис | URL | Назначение |
-|--------|-----|------------|
-| API | `http://localhost:8000` | Основное приложение |
-| Swagger UI | `http://localhost:8000/docs` | Интерактивная документация |
-| ReDoc | `http://localhost:8000/redoc` | Альтернативная документация |
-| PostgreSQL | `localhost:5432` | База данных логов |
+* PostgreSQL
+* SQL
 
-### 3. Проверка работоспособности
+### Infrastructure
 
-**Health-check:**
-```bash
-curl http://localhost:8000/health
-```
-
-**Ожидаемый ответ:**
-```json
-{
-  "status": "ok",
-  "model_loaded": true,
-  "db_connected": true
-}
-```
-
-### 4. Пример предсказания
-
-```bash
-curl -X POST "http://localhost:8000/predict" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "gender": "Male",
-    "senior_citizen": 0,
-    "partner": "Yes",
-    "dependents": "No",
-    "tenure": 12,
-    "phone_service": "Yes",
-    "multiple_lines": "No",
-    "internet_service": "Fiber optic",
-    "online_security": "No",
-    "online_backup": "No",
-    "device_protection": "No",
-    "tech_support": "No",
-    "streaming_tv": "Yes",
-    "streaming_movies": "No",
-    "contract": "Month-to-month",
-    "paperless_billing": "Yes",
-    "payment_method": "Electronic check",
-    "monthly_charges": 80.85,
-    "total_charges": 868.45
-  }'
-```
-
-**Ответ:**
-```json
-{
-  "customer_id": "auto-generated-uuid",
-  "churn_probability": 0.87,
-  "churn_prediction": 1,
-  "risk_segment": "high",
-  "top_features": {
-    "contract": -1.24,
-    "tenure": -0.98,
-    "internet_service": 0.76,
-    "monthly_charges": 0.54,
-    "payment_method": 0.31
-  },
-  "model_version": "v1.0.0",
-  "timestamp": "2026-08-05T12:34:56.789Z"
-}
-```
-
-### 5. Просмотр логов в БД
-
-```bash
-docker-compose exec db psql -U churn_user -d churn_db -c \
-  "SELECT customer_id, churn_probability, risk_segment, created_at FROM predictions ORDER BY created_at DESC LIMIT 5;"
-```
+* Docker
+* Docker Compose
+* Git
 
 ---
 
-## ML-часть
+# 🎯 Что демонстрирует проект
 
-### Датасет
+Проект демонстрирует навыки работы с полным ML lifecycle:
 
-- **Источник:** [Telco Customer Churn](https://www.kaggle.com/datasets/blastchar/telco-customer-churn)
-- **Объём:** 7 043 клиента, 21 признак
-- **Целевая переменная:** `Churn` (Yes / No)
-- **Дисбаланс:** 73% остаются, 27% уходят
-
-### EDA — ключевые находки
-
-| Находка | Влияние на бизнес | Действие в модели |
-|---------|-------------------|-------------------|
-| Churn-rate при `Month-to-month` в **4.5×** выше, чем при Two year | Краткосрочные клиенты — приоритетная аудитория для ретеншена | Создан бинарный признак `is_short_contract` |
-| `Fiber optic` уходят чаще DSL на 18 п.п. | Возможно, проблема качества связи или ценообразования | Target encoding по `internet_service` |
-| `TotalCharges` ≈ `tenure × MonthlyCharges` с точностью 99% | Мультиколлинеарность | Оставлено только `tenure` и `MonthlyCharges`, `TotalCharges` удалён |
-| `Electronic check` — самый рискованный способ оплаты | Возможно, связано с низкой вовлечённостью | Отдельный признак `is_electronic_check` |
-| Клиенты без `OnlineSecurity` и `TechSupport` уходят в 2.3× чаще | Кросс-сейл дополнительных услуг снижает отток | Создан агрегированный признак `services_count` |
-
-### Feature Engineering
-
-**Категориальные признаки:**
-- **One-Hot Encoding:** бинарные признаки (`gender`, `Partner`, `Dependents`)
-- **Target Encoding:** высококарднальные (`InternetService`, `Contract`, `PaymentMethod`)
-- **Frequency Encoding:** редкие категории
-
-**Числовые признаки:**
-- `tenure` → бины: `[0–12]`, `[12–24]`, `[24–48]`, `[48+]`
-- `MonthlyCharges` → логарифмирование (правый хвост)
-- `TotalCharges` → удалён (мультиколлинеарность с `tenure × MonthlyCharges`)
-
-**Взаимодействия (feature crosses):**
-- `tenure × MonthlyCharges` — "накопленная ценность клиента"
-- `is_new_and_expensive` — `tenure < 12` & `MonthlyCharges > 70`
-- `services_count` — сумма подключённых доп.услуг
-- `is_high_risk_payment` — `Electronic check` | `Mailed check`
-
-**Итого:** 8 новых признаков, финальная размерность — 28 признаков.
-
-### Модели и валидация
-
-**Стратегия валидации:** `StratifiedKFold(n_splits=5, shuffle=True, random_state=42)`  
-**Метрика оптимизации:** ROC-AUC
-
-| Модель | ROC-AUC | PR-AUC | F1 | Precision | Recall |
-|--------|---------|--------|-----|-----------|--------|
-| Logistic Regression (baseline) | 0.79 | 0.61 | 0.58 | 0.52 | 0.66 |
-| Random Forest | 0.82 | 0.67 | 0.63 | 0.58 | 0.69 |
-| **LightGBM (Optuna)** | **0.85** | **0.71** | **0.68** | **0.64** | **0.73** |
-| XGBoost | 0.84 | 0.70 | 0.67 | 0.63 | 0.72 |
-
-**Оптимизация гиперпараметров:**
-- Инструмент: `Optuna` (100 trials, TPE sampler)
-- Ключевые параметры LightGBM:
-  - `n_estimators`: 287
-  - `max_depth`: 7
-  - `learning_rate`: 0.045
-  - `num_leaves`: 31
-  - `class_weight`: `balanced`
-
-### Интерпретация модели (SHAP)
-
-Топ-5 признаков, влияющих на отток:
-
-| Признак | Средний |SHAP| | Интерпретация |
-|---------|-------------|---------------|
-| `contract` | 1.24 | Month-to-month резко повышает вероятность оттока |
-| `tenure` | 0.98 | Каждый месяц tenure снижает риск на ~2.5% |
-| `internet_service` | 0.76 | Fiber optic ассоциирован с оттоком |
-| `monthly_charges` | 0.54 | Высокий чек без длительной истории = риск |
-| `payment_method` | 0.31 | Electronic check — маркер низкой лояльности |
-
-**Вывод для бизнеса:** CRM-система должна первоочередно обрабатывать клиентов с `Month-to-month` + `tenure < 12` + `Fiber optic` — их вероятность оттока превышает 80%.
-
-### Анализ ошибок
-
-- **15% ложных отрицаний (FN):** клиенты с `tenure = 1–2` и высоким `MonthlyCharges` — модель недооценивает "импульсный" отток
-- **12% ложных тревог (FP):** долгосрочные клиенты с `Two year`, которые внезапно меняют `PaymentMethod` — сигнал к мониторингу изменений в профиле
-
----
-
-## 🛠️ Технологический стек
-
-### ML / Data Science
-- **Python 3.11**
-- **LightGBM** — градиентный бустинг (основная модель)
-- **Optuna** — байесовская оптимизация гиперпараметров
-- **SHAP** — интерпретация предсказаний
-- **Scikit-learn** — предобработка, метрики, Pipeline
-- **Pandas / Polars** — манипуляции с данными
-- **NumPy** — численные операции
-
-### Backend / API
-- **FastAPI** — асинхронный веб-фреймворк
-- **Pydantic v2** — валидация и сериализация
-- **Uvicorn** — ASGI-сервер
-- **SQLAlchemy 2.0** + **asyncpg** — асинхронная работа с PostgreSQL
-
-### Инфраструктура
-- **Docker** — контейнеризация приложения
-- **Docker Compose** — оркестрация сервисов
-- **PostgreSQL 15** — хранение логов предсказаний
-- **Git + GitHub** — версионирование
-
-### Тестирование
-- **PyTest** — фреймворк тестирования
-- **HTTPX** — асинхронный HTTP-клиент для тестов API
-- **Coverage.py** — анализ покрытия кода
-
----
-
-## Тестирование
-
-### Запуск тестов
-
-```bash
-# Локально (требуется Python 3.11 + зависимости)
-pip install -r requirements.txt
-pytest tests/ -v --cov=app --cov-report=term-missing
+```text
+Data
+ ↓
+EDA
+ ↓
+Feature Engineering
+ ↓
+Machine Learning
+ ↓
+Model Evaluation
+ ↓
+Explainability
+ ↓
+REST API
+ ↓
+Database
+ ↓
+A/B Testing
+ ↓
+Statistical Analysis
+ ↓
+Business Decision
 ```
 
-```bash
-# Внутри контейнера
-docker-compose exec api pytest tests/ -v
-```
+Особое внимание уделено переходу от **«модель показывает хороший score»** к вопросу:
 
-### Покрытие
-
-| Модуль | Покрытие | Тестируемые сценарии |
-|--------|----------|---------------------|
-| `app/schemas.py` | 100% | Валидация корректных/некорректных входных данных, граничные значения |
-| `app/model.py` | 95% | Загрузка модели, predict, обработка ошибок при битом файле |
-| `app/main.py` | 90% | Endpoints `/predict`, `/health`, `/batch_predict`, обработка исключений |
-| `app/database.py` | 88% | CRUD-операции, подключение к БД, retry-логика |
-
-**Пример тест-кейса (негативный сценарий):**
-```python
-def test_predict_invalid_tenure(client):
-    """Tenure не может быть отрицательным"""
-    payload = {..., "tenure": -5, ...}
-    response = client.post("/predict", json=payload)
-    assert response.status_code == 422
-    assert "tenure" in response.json()["detail"][0]["loc"]
-```
+> **«Приносит ли использование модели реальную пользу продукту?»**
 
 ---
 
-## Мониторинг и логирование
+# 🚀 Возможные дальнейшие улучшения
 
-### Структура таблицы `predictions`
-
-```sql
-CREATE TABLE predictions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    customer_id VARCHAR(50),
-    churn_probability FLOAT NOT NULL CHECK (churn_probability BETWEEN 0 AND 1),
-    churn_prediction BOOLEAN NOT NULL,
-    risk_segment VARCHAR(20) CHECK (risk_segment IN ('low', 'medium', 'high')),
-    top_features JSONB,
-    model_version VARCHAR(20) NOT NULL,
-    raw_input JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX idx_predictions_created_at ON predictions(created_at DESC);
-CREATE INDEX idx_predictions_risk_segment ON predictions(risk_segment);
-```
-
-
-## Как использовать в своём проекте
-
-Этот репозиторий может служить **шаблоном** для развёртывания ML-моделей в продакшен.  
-Для адаптации под другую задачу:
-
-1. Замените датасет в `notebooks/`
-2. Переобучите модель через `src/train.py`
-3. Обновите Pydantic-схемы в `app/schemas.py` под новые признаки
-4. Пересоберите контейнер: `docker-compose up --build`
+* [ ] Добавить полноценный business-oriented retention A/B test
+* [ ] Добавить CUPED
+* [ ] Добавить guardrail metrics
+* [ ] Добавить monitoring ML-модели
+* [ ] Добавить data drift detection
+* [ ] Добавить experiment dashboard
+* [ ] Добавить CI/CD
+* [ ] Добавить model registry
+* [ ] Добавить automated retraining pipeline
 
 ---
 
-## Контакты
+# 👨‍💻 Author
 
-**Егор Козин** — Data Scientist / ML Engineer  
-[kozinegor2906@gmail.com](mailto:kozinegor2906@gmail.com)  
-[GitHub](https://github.com/whunotexplain)  
-[Kaggle](https://www.kaggle.com/bigbddgccibrgr)
+**whunotexplain**
+
+Student / Junior Data Scientist & Backend Developer
+
+Интересы:
+
+* Machine Learning
+* Data Science
+* Data Analytics
+* Statistics
+* Backend Development
+* MLOps
 
 ---
 
-<p align="center">
-  <sub>Built with ❤️ for learning and production-ready ML deployment.</sub>
-</p>
+## ⭐ Основная идея
+
+> **ChurnPrediction — это не просто модель классификации. Это попытка построить полноценную систему, в которой ML-модель становится частью продукта, а её влияние проверяется с помощью статистического эксперимента.**
