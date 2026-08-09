@@ -33,32 +33,8 @@
 
 ## 🏗️ Архитектура
 
-```text
-                    ┌─────────────────────┐
-                    │    Client / User    │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │      FastAPI        │
-                    │      REST API       │
-                    └──────────┬──────────┘
-                               │
-              ┌────────────────┼────────────────┐
-              │                │                │
-              ▼                ▼                ▼
-        ┌───────────┐   ┌──────────────┐  ┌──────────────┐
-        │ ML Model  │   │ A/B Testing  │  │ PostgreSQL   │
-        │ Prediction│   │ & Statistics │  │   Database   │
-        └─────┬─────┘   └──────┬───────┘  └──────────────┘
-              │                 │
-              └────────┬────────┘
-                       ▼
-              ┌──────────────────┐
-              │ Business Metrics │
-              │ Churn / Retention│
-              └──────────────────┘
-```
+<img width="1434" height="898" alt="Architecture" src="https://github.com/user-attachments/assets/305526c9-68ba-4c2d-84c4-9e66d05acdc4" />
+
 
 ---
 
